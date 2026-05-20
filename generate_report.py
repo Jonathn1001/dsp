@@ -494,12 +494,18 @@ while i < len(paragraphs):
     txt = p.text.strip()
     style = p.style.name
 
-    if style == 'Heading 1' and txt.startswith('Câu '):
-        try:
-            current_cau = int(txt.split('.')[0].split('Câu')[1].strip())
-            current_sub = None
-        except Exception:
+    if style == 'Heading 1':
+        if txt.startswith('Câu '):
+            try:
+                current_cau = int(txt.split('.')[0].split('Câu')[1].strip())
+                current_sub = None
+            except Exception:
+                current_cau = None
+        else:
+            # Heading 1 khac (vd "Kết luận và bài học rút ra", "Tài liệu tham khảo")
+            # → reset current_cau de khong dien nham noi dung Cau 7 vao day
             current_cau = None
+            current_sub = None
 
     elif style == 'Heading 2' and current_cau is not None:
         first = txt.split('.')[0].strip()
@@ -538,6 +544,55 @@ while i < len(paragraphs):
             set_text(p, "Không gặp khó khăn lớn. Một số chi tiết kỹ thuật cần chú ý đã được giải quyết theo lý thuyết: chuẩn hoá biên độ DFT (nhân 2 với bin không phải DC/Nyquist), thêm thành phần mirror tại (fs − f0) cho bộ lọc Gauss để đảm bảo tín hiệu sau lọc là số thực, và cài đặt pha của chirp tuyến tính bằng tích phân tần số tức thời.")
 
     i += 1
+
+# Điền 3 mục con của phần "Kết luận và bài học rút ra"
+KETLUAN = {
+1: "Qua 7 câu kiểm tra, em đã nắm vững quy trình phân tích Fourier từ cài đặt thuật toán nền tảng (DFT vòng lặp, chuẩn hoá biên độ Hermitian, hiểu vì sao phải nhân 2 các bin không phải DC/Nyquist) đến ứng dụng thực tiễn (lọc tuyến tính trong miền tần số, STFT cho tín hiệu không dừng, phân tích phổ EEG sinh lý, lọc ảnh 2D bằng Gauss). Hai kết quả định lượng quan trọng: (i) FFT scipy nhanh hơn DFT vòng lặp khoảng 12000 lần tại N = 8000, khẳng định giá trị của thuật toán Cooley–Tukey và mức ý nghĩa thực tiễn của O(N log N) so với O(N²); (ii) bộ lọc Gauss bandpass đơn giản cải thiện SNR khoảng 30 dB chỉ bằng phép nhân điểm trong miền tần số rồi IFFT, minh hoạ sức mạnh của định lý tích chập.",
+
+2: """- Cài đặt DFT và STFT từ vòng lặp, hiểu rõ cách chuẩn hoá biên độ và tính đối xứng Hermitian của phổ tín hiệu thực.
+- Sử dụng thành thạo các thư viện scipy.fftpack (fft, ifft, fftshift), scipy.signal (welch, hann window), scipy.io (loadmat đọc file .mat), PIL (đọc ảnh).
+- Hiểu định lý Nyquist, hiện tượng gập phổ (aliasing), và vai trò của bộ lọc anti-aliasing trước ADC.
+- Áp dụng định lý tích chập cho lọc tuyến tính trong miền tần số; hiểu lý do cửa sổ Gauss tốt hơn cắt cứng (tránh hiệu ứng Gibbs / ringing).
+- Đánh giá sự đánh đổi Heisenberg trong phân tích thời gian–tần số khi chọn kích thước cửa sổ STFT.
+- Đọc và diễn giải tín hiệu y sinh (EEG) theo 5 băng tần sinh lý Delta/Theta/Alpha/Beta/Gamma, giải thích cơ chế alpha blocking tại vùng chẩm.
+- Áp dụng FFT 2D vào xử lý ảnh, hiểu vai trò của log|FFT2|, pha, và cách thiết kế bộ lọc Gauss 2D cho low-pass / high-pass.
+- Trình bày báo cáo khoa học có cấu trúc, kèm hình ảnh có chú thích đầy đủ và phân tích định lượng (RMSE, SNR, % năng lượng).""",
+
+3: """- Wavelet và Continuous Wavelet Transform (CWT): phân giải thời gian–tần số đa thang đo, vượt giới hạn STFT có Δt cố định. Wavelet Morlet và Mexican hat thường dùng trong EEG, ECG.
+- Biến đổi Hilbert và Hilbert–Huang Transform (HHT): phân tích biên độ/pha tức thời cho tín hiệu phi tuyến và không dừng. EMD (Empirical Mode Decomposition) là tiền xử lý quan trọng trong HHT.
+- Spectral estimation nâng cao: Multitaper (Thomson), AR/Burg, MUSIC, ESPRIT — cho phép ước lượng tần số với độ phân giải siêu cao trong khi N hữu hạn.
+- Lọc thích nghi (adaptive filtering): LMS, NLMS, RLS — bộ lọc tự cập nhật theo dữ liệu thay vì hệ số cố định; ứng dụng khử echo, beamforming, equalization kênh truyền.
+- Học máy với đặc trưng phổ: dùng STFT, CWT, mel-spectrogram làm input cho CNN trong nhận dạng âm thanh, BCI từ EEG, phát hiện lỗi vibration.
+- Xử lý ảnh nâng cao trong miền tần số: lọc homomorphic (tách bóng / phản xạ), bộ lọc Butterworth, Wiener; ứng dụng phục hồi ảnh, khử nhiễu MRI/CT.
+- Xử lý đa kênh EEG: ICA (Independent Component Analysis) tách nguồn, source localization với LORETA/sLORETA, connectivity analysis với coherence và phase locking value (PLV).""",
+}
+
+# Tim 3 paragraph Normal ngay sau 3 Heading 2 cua "Kết luận và bài học rút ra"
+in_ketluan = False
+ketluan_sub = 0
+for p in doc.paragraphs:
+    txt = p.text.strip()
+    style = p.style.name
+    if style == 'Heading 1' and 'Kết luận' in txt:
+        in_ketluan = True
+        ketluan_sub = 0
+        continue
+    if style == 'Heading 1' and in_ketluan:
+        in_ketluan = False
+        continue
+    if not in_ketluan:
+        continue
+    if style == 'Heading 2':
+        try:
+            ketluan_sub = int(txt.split('.')[0].strip())
+        except Exception:
+            ketluan_sub = 0
+    elif style == 'Normal' and ketluan_sub in KETLUAN and txt:
+        for r in list(p.runs):
+            r._element.getparent().remove(r._element)
+        run = p.add_run(KETLUAN[ketluan_sub])
+        run.font.size = Pt(11)
+        ketluan_sub = 0  # da dien xong, doi heading 2 tiep theo
 
 # Chèn ảnh vào các table khung ảnh T1..T7 (mỗi câu có 1 table riêng)
 # Table T0 là bảng thông tin cá nhân, T1..T7 chứa placeholder "[ Ảnh chụp kết quả câu N ]"
