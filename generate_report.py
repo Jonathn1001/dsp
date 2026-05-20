@@ -529,21 +529,31 @@ while i < len(paragraphs):
                     rPr.insert(0, rFonts)
                 rFonts.set(qn('w:ascii'), 'Consolas')
                 rFonts.set(qn('w:hAnsi'), 'Consolas')
-        elif current_sub == 4 and current_cau not in images_inserted:
-            if 'Chụp toàn bộ' in txt or 'Chup toan bo' in txt:
-                for img_name in IMG_MAP[current_cau]:
-                    img_path = os.path.join(IMGDIR, img_name)
-                    if os.path.exists(img_path):
-                        run = p.add_run()
-                        run.add_break()
-                        run.add_picture(img_path, width=Inches(6.0))
-                images_inserted.add(current_cau)
+        elif current_sub == 4:
+            # Bo qua — anh se duoc chen vao table khung anh ben duoi
+            pass
         elif current_sub == 5 and is_placeholder:
             set_text(p, PHANTICH[current_cau])
         elif current_sub == 6 and is_placeholder:
             set_text(p, "Không gặp khó khăn lớn. Một số chi tiết kỹ thuật cần chú ý đã được giải quyết theo lý thuyết: chuẩn hoá biên độ DFT (nhân 2 với bin không phải DC/Nyquist), thêm thành phần mirror tại (fs − f0) cho bộ lọc Gauss để đảm bảo tín hiệu sau lọc là số thực, và cài đặt pha của chirp tuyến tính bằng tích phân tần số tức thời.")
 
     i += 1
+
+# Chèn ảnh vào các table khung ảnh T1..T7 (mỗi câu có 1 table riêng)
+# Table T0 là bảng thông tin cá nhân, T1..T7 chứa placeholder "[ Ảnh chụp kết quả câu N ]"
+for cau_idx in range(1, 8):
+    table = doc.tables[cau_idx]  # T1 ung voi cau 1, T2 voi cau 2, ...
+    cell = table.rows[0].cells[0]
+    # Xoa toan bo paragraphs trong cell
+    for p in list(cell.paragraphs):
+        p._element.getparent().remove(p._element)
+    # Them paragraph moi va chen anh
+    for img_name in IMG_MAP[cau_idx]:
+        img_path = os.path.join(IMGDIR, img_name)
+        if os.path.exists(img_path):
+            new_p = cell.add_paragraph()
+            run = new_p.add_run()
+            run.add_picture(img_path, width=Inches(6.0))
 
 # Chèn link GitHub vào trang bìa, ngay trên dòng "BÁO CÁO BÀI KIỂM TRA LẬP TRÌNH"
 inserted_link = False
